@@ -12,6 +12,7 @@ import android.widget.TextView;
 import com.rustamnavoyan.theguardiannewsfeed.database.ArticleTable;
 import com.rustamnavoyan.theguardiannewsfeed.manage.ArticleSaver;
 import com.rustamnavoyan.theguardiannewsfeed.manage.ArticlesApiClient;
+import com.rustamnavoyan.theguardiannewsfeed.manage.PeriodicDownloadManager;
 import com.rustamnavoyan.theguardiannewsfeed.models.Article;
 import com.rustamnavoyan.theguardiannewsfeed.models.ArticleItem;
 import com.rustamnavoyan.theguardiannewsfeed.models.data.Fields;
@@ -78,6 +79,21 @@ public class ArticlePageActivity extends AppCompatActivity implements
         mContentView.setText(mArticle.getArticleBodyText());
         mContentView.setVisibility(View.VISIBLE);
         mProgressBar.setVisibility(View.GONE);
+    }
+
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        PeriodicDownloadManager.cancel(this);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        PeriodicDownloadManager.schedule(this);
     }
 
     @Override

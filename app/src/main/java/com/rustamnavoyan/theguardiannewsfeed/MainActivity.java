@@ -2,6 +2,8 @@ package com.rustamnavoyan.theguardiannewsfeed;
 
 import android.os.Bundle;
 
+import com.rustamnavoyan.theguardiannewsfeed.manage.NotificationManager;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
 
@@ -18,5 +20,7 @@ public class MainActivity extends AppCompatActivity {
                     .add(R.id.container, new MainFragment(), MainFragment.class.getSimpleName())
                     .commit();
         }
+
+        NotificationManager.clearNotifications(this);
     }
 }

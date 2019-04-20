@@ -11,10 +11,14 @@ import android.view.ViewGroup;
 import com.rustamnavoyan.theguardiannewsfeed.adapters.ArticleListAdapter;
 import com.rustamnavoyan.theguardiannewsfeed.database.ArticleTable;
 import com.rustamnavoyan.theguardiannewsfeed.manage.ArticleDownloader;
+import com.rustamnavoyan.theguardiannewsfeed.manage.PreferenceHelper;
 import com.rustamnavoyan.theguardiannewsfeed.models.ArticleItem;
 import com.rustamnavoyan.theguardiannewsfeed.utils.ConnectionUtil;
+import com.rustamnavoyan.theguardiannewsfeed.manage.PeriodicDownloadManager;
+import com.rustamnavoyan.theguardiannewsfeed.utils.DateTimeUtil;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import androidx.annotation.NonNull;
@@ -52,6 +56,20 @@ public class MainFragment extends Fragment implements
 
         setRetainInstance(true);
         mArticleDownloader = new ArticleDownloader();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        PeriodicDownloadManager.cancel(getContext());
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        PeriodicDownloadManager.schedule(getContext());
     }
 
     @Nullable
@@ -106,6 +124,10 @@ public class MainFragment extends Fragment implements
         mArticleDownloader.downloadArticleList(mPage, articles -> {
             if (getActivity() != null) {
                 getActivity().runOnUiThread(() -> {
+                    if (mPage == 1) {
+                        Date date = DateTimeUtil.parseDate(articles.get(0).getPublishedDate());
+                        PreferenceHelper.getInstance(getContext()).saveDate(date);
+                    }
                     mAdapter.addArticleList(articles);
                     mArticleItems = new ArrayList<>(mAdapter.getArticleItemList());
                     mPage++;

@@ -14,8 +14,12 @@ public class ArticleDownloader {
     private static final int PAGE_SIZE = 10;
 
     public void downloadArticleList(int page, OnDownloadCallback callback) {
+        downloadArticleList(page, PAGE_SIZE, callback);
+    }
+
+    public void downloadArticleList(int page, int pageSize, OnDownloadCallback callback) {
         ArticlesApiClient articlesApiClient = new ArticlesApiClient();
-        articlesApiClient.getArticleList(page, PAGE_SIZE, response -> {
+        articlesApiClient.getArticleList(page, pageSize, response -> {
             List<Result> results = response.getResponse().getResults();
             List<ArticleItem> articleItems = new ArrayList<>();
             for (Result result : results) {
@@ -27,6 +31,7 @@ public class ArticleDownloader {
                     articleItem.setThumbnailUrl(result.getFields().getThumbnail());
                 }
                 articleItem.setApiUrl(result.getApiUrl());
+                articleItem.setPublishedDate(result.getWebPublicationDate());
                 articleItems.add(articleItem);
             }
 
