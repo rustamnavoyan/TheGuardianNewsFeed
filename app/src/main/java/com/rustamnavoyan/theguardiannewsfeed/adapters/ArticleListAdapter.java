@@ -18,6 +18,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 public class ArticleListAdapter extends RecyclerView.Adapter<ArticleListAdapter.ArticleViewHolder> {
 
+    public interface OnItemClickListener {
+        void onItemClicked(ArticleItem article);
+    }
+
     static class ArticleViewHolder extends RecyclerView.ViewHolder {
         private ImageView mThumbnail;
         private TextView mTitle;
@@ -33,6 +37,11 @@ public class ArticleListAdapter extends RecyclerView.Adapter<ArticleListAdapter.
     }
 
     private List<ArticleItem> mArticleItemList = new ArrayList<>();
+    private OnItemClickListener mItemClickListener;
+
+    public ArticleListAdapter(OnItemClickListener itemClickListener) {
+        mItemClickListener = itemClickListener;
+    }
 
     public void addArticleList(List<ArticleItem> articleItemList) {
         int start = mArticleItemList.size();
@@ -47,8 +56,14 @@ public class ArticleListAdapter extends RecyclerView.Adapter<ArticleListAdapter.
     @NonNull
     @Override
     public ArticleViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return new ArticleViewHolder(LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.list_item_article, parent, false));
+        View view = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.list_item_article, parent, false);
+        ArticleViewHolder holder = new ArticleViewHolder(view);
+        view.setOnClickListener(v -> {
+            mItemClickListener.onItemClicked(mArticleItemList.get(holder.getAdapterPosition()));
+        });
+
+        return holder;
     }
 
     @Override

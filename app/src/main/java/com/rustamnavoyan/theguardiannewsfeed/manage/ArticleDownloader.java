@@ -26,6 +26,7 @@ public class ArticleDownloader {
                 if (result.getFields() != null) {
                     articleItem.setThumbnailUrl(result.getFields().getThumbnail());
                 }
+                articleItem.setApiUrl(result.getApiUrl());
                 articleItems.add(articleItem);
             }
 

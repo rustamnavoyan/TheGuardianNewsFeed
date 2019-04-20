@@ -7,6 +7,7 @@ public class ArticleItem implements Parcelable {
     private String mThumbnailUrl;
     private String mTitle;
     private String mCategory;
+    private String mApiUrl;
 
     public ArticleItem() {
     }
@@ -15,6 +16,7 @@ public class ArticleItem implements Parcelable {
         mThumbnailUrl = in.readString();
         mTitle = in.readString();
         mCategory = in.readString();
+        mApiUrl = in.readString();
     }
 
     public static final Creator<ArticleItem> CREATOR = new Creator<ArticleItem>() {
@@ -39,6 +41,7 @@ public class ArticleItem implements Parcelable {
         parcel.writeString(mThumbnailUrl);
         parcel.writeString(mTitle);
         parcel.writeString(mCategory);
+        parcel.writeString(mApiUrl);
     }
 
     public String getThumbnailUrl() {
@@ -63,5 +66,13 @@ public class ArticleItem implements Parcelable {
 
     public void setCategory(String category) {
         mCategory = category;
+    }
+
+    public String getApiUrl() {
+        return mApiUrl;
+    }
+
+    public void setApiUrl(String apiUrl) {
+        mApiUrl = apiUrl;
     }
 }

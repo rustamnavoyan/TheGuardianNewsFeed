@@ -13,6 +13,7 @@ public class Response {
     private int pages;
     private String orderBy;
     private List<Result> results = Collections.emptyList();
+    private Result content;
 
     public String getStatus() {
         return status;
@@ -48,5 +49,9 @@ public class Response {
 
     public List<Result> getResults() {
         return results;
+    }
+
+    public Result getContent() {
+        return content;
     }
 }

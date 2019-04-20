@@ -1,5 +1,6 @@
 package com.rustamnavoyan.theguardiannewsfeed;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,7 +18,8 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-public class MainFragment extends Fragment {
+public class MainFragment extends Fragment implements
+        ArticleListAdapter.OnItemClickListener {
     private ArticleDownloader mArticleDownloader;
 
     private int mPage = 1;
@@ -39,7 +41,7 @@ public class MainFragment extends Fragment {
         RecyclerView recyclerView = view.findViewById(R.id.articles_recycler_view);
         LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
         recyclerView.setLayoutManager(layoutManager);
-        ArticleListAdapter adapter = new ArticleListAdapter();
+        ArticleListAdapter adapter = new ArticleListAdapter(this);
         recyclerView.setAdapter(adapter);
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -80,5 +82,12 @@ public class MainFragment extends Fragment {
                 });
             }
         });
+    }
+
+    @Override
+    public void onItemClicked(ArticleItem article) {
+        Intent intent = new Intent(getContext(), ArticlePageActivity.class);
+        intent.putExtra(ArticlePageActivity.EXTRA_ARTICLE_ITEM, article);
+        startActivity(intent);
     }
 }
