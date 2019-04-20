@@ -38,8 +38,12 @@ public class ArticleListAdapter extends RecyclerView.Adapter<ArticleListAdapter.
 
     private List<ArticleItem> mArticleItemList = new ArrayList<>();
     private OnItemClickListener mItemClickListener;
+    private boolean mPinned;
+    private int mScreenWidth;
 
-    public ArticleListAdapter(OnItemClickListener itemClickListener) {
+    public ArticleListAdapter(boolean pinned, int screenWidth, OnItemClickListener itemClickListener) {
+        mPinned = pinned;
+        mScreenWidth = screenWidth;
         mItemClickListener = itemClickListener;
     }
 
@@ -53,12 +57,27 @@ public class ArticleListAdapter extends RecyclerView.Adapter<ArticleListAdapter.
         return mArticleItemList;
     }
 
+    public void setArticleList(List<ArticleItem> articleList) {
+        mArticleItemList = articleList;
+        notifyDataSetChanged();
+    }
+
+    public void clearArticles() {
+        mArticleItemList.clear();
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public ArticleViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.list_item_article, parent, false);
         ArticleViewHolder holder = new ArticleViewHolder(view);
+        if (mPinned) {
+            view.setBackgroundColor(parent.getContext().getResources().getColor(R.color.pinned_bg_color));
+            ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
+            layoutParams.width = (int) (mScreenWidth * 0.8);
+        }
         view.setOnClickListener(v -> {
             mItemClickListener.onItemClicked(mArticleItemList.get(holder.getAdapterPosition()));
         });

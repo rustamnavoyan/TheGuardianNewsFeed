@@ -20,6 +20,11 @@
         </activity>
 
         <activity android:name=".ArticlePageActivity"/>
+
+        <provider
+            android:name=".database.NewsFeedContentProvider"
+            android:authorities="${packageName}.article"
+            android:exported="false"/>
     </application>
 
 </manifest>

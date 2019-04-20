@@ -1,29 +1,43 @@
 package com.rustamnavoyan.theguardiannewsfeed;
 
 import android.content.Intent;
+import android.database.Cursor;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.rustamnavoyan.theguardiannewsfeed.adapters.ArticleListAdapter;
+import com.rustamnavoyan.theguardiannewsfeed.database.ArticleTable;
 import com.rustamnavoyan.theguardiannewsfeed.manage.ArticleDownloader;
 import com.rustamnavoyan.theguardiannewsfeed.models.ArticleItem;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.content.CursorLoader;
+import androidx.loader.content.Loader;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 public class MainFragment extends Fragment implements
-        ArticleListAdapter.OnItemClickListener {
+        ArticleListAdapter.OnItemClickListener,
+        LoaderManager.LoaderCallbacks<Cursor> {
+
+    private static final int ARTICLE_LOADER_ID = 1;
+
     private ArticleDownloader mArticleDownloader;
 
     private int mPage = 1;
     private ArrayList<ArticleItem> mArticleItems;
+
+    private RecyclerView mPinnedRecyclerView;
+    private ArticleListAdapter mPinnedAdapter;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -38,10 +52,16 @@ public class MainFragment extends Fragment implements
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_main, container, false);
 
+        int screenWidth = getScreenWidth();
+        mPinnedRecyclerView = view.findViewById(R.id.pinned_articles_recycler_view);
+        mPinnedRecyclerView.setLayoutManager(new LinearLayoutManager(getContext(), RecyclerView.HORIZONTAL, false));
+        mPinnedAdapter = new ArticleListAdapter(true, screenWidth, this);
+        mPinnedRecyclerView.setAdapter(mPinnedAdapter);
+
         RecyclerView recyclerView = view.findViewById(R.id.articles_recycler_view);
         LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
         recyclerView.setLayoutManager(layoutManager);
-        ArticleListAdapter adapter = new ArticleListAdapter(this);
+        ArticleListAdapter adapter = new ArticleListAdapter(false, screenWidth, this);
         recyclerView.setAdapter(adapter);
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -84,10 +104,59 @@ public class MainFragment extends Fragment implements
         });
     }
 
+    private int getScreenWidth() {
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        getActivity().getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        return displayMetrics.widthPixels;
+    }
+
     @Override
     public void onItemClicked(ArticleItem article) {
         Intent intent = new Intent(getContext(), ArticlePageActivity.class);
         intent.putExtra(ArticlePageActivity.EXTRA_ARTICLE_ITEM, article);
         startActivity(intent);
+    }
+
+    @Override
+    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
+        LoaderManager.getInstance(getActivity()).initLoader(ARTICLE_LOADER_ID, null, this);
+    }
+
+    @NonNull
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, @Nullable Bundle args) {
+        return new CursorLoader(getContext(), ArticleTable.CONTENT_URI, null,
+                null, null, null);
+    }
+
+    @Override
+    public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor data) {
+        if (data != null && data.getCount() > 0) {
+            // TODO Probably not efficient but we can reuse ArticleListAdapter
+            List<ArticleItem> articles = convertToArticles(data);
+
+            mPinnedRecyclerView.setVisibility(View.VISIBLE);
+            mPinnedAdapter.setArticleList(articles);
+        } else {
+            mPinnedRecyclerView.setVisibility(View.GONE);
+            mPinnedAdapter.clearArticles();
+        }
+    }
+
+    private List<ArticleItem> convertToArticles(Cursor cursor) {
+        List<ArticleItem> articles = new ArrayList<>();
+        cursor.moveToPosition(-1);
+        while (cursor.moveToNext()) {
+            articles.add(ArticleTable.parse(cursor));
+        }
+
+        return articles;
+    }
+
+    @Override
+    public void onLoaderReset(@NonNull Loader<Cursor> loader) {
+
     }
 }

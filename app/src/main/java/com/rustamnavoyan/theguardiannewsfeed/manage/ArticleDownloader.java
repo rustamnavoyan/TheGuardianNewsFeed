@@ -19,7 +19,7 @@ public class ArticleDownloader {
             List<Result> results = response.getResponse().getResults();
             List<ArticleItem> articleItems = new ArrayList<>();
             for (Result result : results) {
-                ArticleItem articleItem = new ArticleItem();
+                ArticleItem articleItem = new ArticleItem(result.getId());
                 articleItem.setTitle(result.getWebTitle());
                 // TODO Probably this is not the category
                 articleItem.setCategory(result.getPillarName());
