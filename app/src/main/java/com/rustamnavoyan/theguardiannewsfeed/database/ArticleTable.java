@@ -14,14 +14,17 @@ import com.rustamnavoyan.theguardiannewsfeed.utils.IOUtil;
 
 public class ArticleTable {
     public static final String TABLE_NAME = "items";
-    public static final Uri CONTENT_URI = Uri.parse("content://" + NewsFeedContentProvider.AUTHORITY + "/" + TABLE_NAME);
+    public static final Uri PINNED_CONTENT_URI = Uri.parse("content://" + NewsFeedContentProvider.AUTHORITY + "/" + TABLE_NAME + "/pinned");
+    public static final Uri SAVED_CONTENT_URI = Uri.parse("content://" + NewsFeedContentProvider.AUTHORITY + "/" + TABLE_NAME + "/saved");
 
-    public static final int ARTICLE = 0;
+    public static final int PINNED_ARTICLES = 0;
+    public static final int SAVED_ARTICLES = 1;
 
     private static final UriMatcher MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
 
     static {
-        MATCHER.addURI(NewsFeedContentProvider.AUTHORITY, TABLE_NAME, ARTICLE);
+        MATCHER.addURI(NewsFeedContentProvider.AUTHORITY, TABLE_NAME + "/pinned", PINNED_ARTICLES);
+        MATCHER.addURI(NewsFeedContentProvider.AUTHORITY, TABLE_NAME + "/saved", SAVED_ARTICLES);
     }
 
     public static class Columns implements BaseColumns {
@@ -75,7 +78,8 @@ public class ArticleTable {
     }
 
     protected void notifyChange() {
-        mOpenHelper.getContext().getContentResolver().notifyChange(CONTENT_URI, null);
+        mOpenHelper.getContext().getContentResolver().notifyChange(PINNED_CONTENT_URI, null);
+        mOpenHelper.getContext().getContentResolver().notifyChange(SAVED_CONTENT_URI, null);
     }
 
     private SQLiteDatabase openReadable() {
@@ -178,7 +182,7 @@ public class ArticleTable {
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
         Cursor cursor;
         switch (MATCHER.match(uri)) {
-            case ARTICLE:
+            case PINNED_ARTICLES:
                 String withPinnedSelection = selection == null || selection.isEmpty()
                         ? Columns.PINNED + " != ?" : selection + " AND " + Columns.PINNED + " != ?";
                 int length = selectionArgs == null || selectionArgs.length == 0
@@ -188,6 +192,14 @@ public class ArticleTable {
 
                 cursor = mOpenHelper.getReadableDatabase().query(TABLE_NAME, projection, withPinnedSelection,
                         withPinnedSelectionArgs, null, null, sortOrder);
+                break;
+
+            case SAVED_ARTICLES:
+                withPinnedSelection = selection == null || selection.isEmpty()
+                        ? Columns.BODY_TEXT + " IS NOT NULL" : selection + " AND " + Columns.BODY_TEXT + " IS NOT NULL";
+
+                cursor = mOpenHelper.getReadableDatabase().query(TABLE_NAME, projection, withPinnedSelection,
+                        selectionArgs, null, null, sortOrder);
                 break;
 
             default:

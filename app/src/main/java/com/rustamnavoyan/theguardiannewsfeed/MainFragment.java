@@ -12,6 +12,7 @@ import com.rustamnavoyan.theguardiannewsfeed.adapters.ArticleListAdapter;
 import com.rustamnavoyan.theguardiannewsfeed.database.ArticleTable;
 import com.rustamnavoyan.theguardiannewsfeed.manage.ArticleDownloader;
 import com.rustamnavoyan.theguardiannewsfeed.models.ArticleItem;
+import com.rustamnavoyan.theguardiannewsfeed.utils.ConnectionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +30,8 @@ public class MainFragment extends Fragment implements
         ArticleListAdapter.OnItemClickListener,
         LoaderManager.LoaderCallbacks<Cursor> {
 
-    private static final int ARTICLE_LOADER_ID = 1;
+    private static final int PINNED_ARTICLE_LOADER_ID = 1;
+    private static final int SAVED_ARTICLE_LOADER_ID = 2;
 
     private ArticleDownloader mArticleDownloader;
 
@@ -38,6 +40,11 @@ public class MainFragment extends Fragment implements
 
     private RecyclerView mPinnedRecyclerView;
     private ArticleListAdapter mPinnedAdapter;
+
+    private RecyclerView mRecyclerView;
+    private ArticleListAdapter mAdapter;
+
+    private boolean mConnected;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -58,47 +65,49 @@ public class MainFragment extends Fragment implements
         mPinnedAdapter = new ArticleListAdapter(true, screenWidth, this);
         mPinnedRecyclerView.setAdapter(mPinnedAdapter);
 
-        RecyclerView recyclerView = view.findViewById(R.id.articles_recycler_view);
+        mRecyclerView = view.findViewById(R.id.articles_recycler_view);
         LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
-        recyclerView.setLayoutManager(layoutManager);
-        ArticleListAdapter adapter = new ArticleListAdapter(false, screenWidth, this);
-        recyclerView.setAdapter(adapter);
-        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                super.onScrollStateChanged(recyclerView, newState);
-            }
-
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-
-                int totalItemCount = layoutManager.getItemCount();
-                int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
-
-                // start loading articles if there are 2 items to reach the last loaded item
-                if (totalItemCount <= (lastVisibleItem + 2)) {
-                    adapter.setLoading();
-                    loadArticles(adapter);
+        mRecyclerView.setLayoutManager(layoutManager);
+        mAdapter = new ArticleListAdapter(false, screenWidth, this);
+        mRecyclerView.setAdapter(mAdapter);
+        mConnected = ConnectionUtil.isConnected(getContext());
+        if (mConnected) {
+            mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+                @Override
+                public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                    super.onScrollStateChanged(recyclerView, newState);
                 }
-            }
-        });
 
-        if (mArticleItems == null) {
-            loadArticles(adapter);
-        } else {
-            adapter.addArticleList(mArticleItems);
+                @Override
+                public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                    super.onScrolled(recyclerView, dx, dy);
+
+                    int totalItemCount = layoutManager.getItemCount();
+                    int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
+
+                    // start loading articles if there are 2 items to reach the last loaded item
+                    if (totalItemCount <= (lastVisibleItem + 2)) {
+                        mAdapter.setLoading();
+                        loadArticles();
+                    }
+                }
+            });
+            if (mArticleItems == null) {
+                loadArticles();
+            } else {
+                mAdapter.addArticleList(mArticleItems);
+            }
         }
 
         return view;
     }
 
-    private void loadArticles(ArticleListAdapter adapter) {
+    private void loadArticles() {
         mArticleDownloader.downloadArticleList(mPage, articles -> {
             if (getActivity() != null) {
                 getActivity().runOnUiThread(() -> {
-                    adapter.addArticleList(articles);
-                    mArticleItems = new ArrayList<>(adapter.getArticleItemList());
+                    mAdapter.addArticleList(articles);
+                    mArticleItems = new ArrayList<>(mAdapter.getArticleItemList());
                     mPage++;
                 });
             }
@@ -122,27 +131,53 @@ public class MainFragment extends Fragment implements
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        LoaderManager.getInstance(getActivity()).initLoader(ARTICLE_LOADER_ID, null, this);
+        LoaderManager.getInstance(getActivity()).initLoader(PINNED_ARTICLE_LOADER_ID, null, this);
+        if (!mConnected) {
+            LoaderManager.getInstance(getActivity()).initLoader(SAVED_ARTICLE_LOADER_ID, null, this);
+        }
     }
 
     @NonNull
     @Override
     public Loader<Cursor> onCreateLoader(int id, @Nullable Bundle args) {
-        return new CursorLoader(getContext(), ArticleTable.CONTENT_URI, null,
-                null, null, null);
+        switch (id) {
+            case PINNED_ARTICLE_LOADER_ID:
+                return new CursorLoader(getContext(), ArticleTable.PINNED_CONTENT_URI, null,
+                        null, null, null);
+
+            case SAVED_ARTICLE_LOADER_ID:
+                return new CursorLoader(getContext(), ArticleTable.SAVED_CONTENT_URI, null,
+                        null, null, null);
+
+            default:
+                return null;
+        }
     }
 
     @Override
     public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor data) {
-        if (data != null && data.getCount() > 0) {
-            // TODO Probably not efficient but we can reuse ArticleListAdapter
-            List<ArticleItem> articles = convertToArticles(data);
+        switch (loader.getId()) {
+            case PINNED_ARTICLE_LOADER_ID:
+                if (data != null && data.getCount() > 0) {
+                    // TODO Probably not efficient but we can reuse ArticleListAdapter
+                    List<ArticleItem> articles = convertToArticles(data);
 
-            mPinnedRecyclerView.setVisibility(View.VISIBLE);
-            mPinnedAdapter.setArticleList(articles);
-        } else {
-            mPinnedRecyclerView.setVisibility(View.GONE);
-            mPinnedAdapter.clearArticles();
+                    mPinnedRecyclerView.setVisibility(View.VISIBLE);
+                    mPinnedAdapter.setArticleList(articles);
+                } else {
+                    mPinnedRecyclerView.setVisibility(View.GONE);
+                    mPinnedAdapter.clearArticles();
+                }
+                break;
+
+            case SAVED_ARTICLE_LOADER_ID:
+                if (data != null && data.getCount() > 0) {
+                    List<ArticleItem> articles = convertToArticles(data);
+                    mAdapter.setArticleList(articles);
+                } else {
+                    mAdapter.clearArticles();
+                }
+                break;
         }
     }
 
