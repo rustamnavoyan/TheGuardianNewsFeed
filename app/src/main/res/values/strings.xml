@@ -2,4 +2,6 @@
     <string name="app_name">TheGuardianNewsFeed</string>
     <string name="pin">Pin</string>
     <string name="unpin">Unpin</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
 </resources>

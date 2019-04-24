@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.provider.BaseColumns;
 
+import com.rustamnavoyan.theguardiannewsfeed.models.Article;
 import com.rustamnavoyan.theguardiannewsfeed.models.ArticleItem;
 import com.rustamnavoyan.theguardiannewsfeed.utils.CursorUtil;
 import com.rustamnavoyan.theguardiannewsfeed.utils.IOUtil;
@@ -29,12 +30,14 @@ public class ArticleTable {
         public static final String TITLE = "_title";
         public static final String CATEGORY = "_category";
         public static final String API_URL = "_api_url";
+        public static final String BODY_TEXT = "_body_text";
         public static final String PINNED = "_pinned";
     }
 
     private static final String CREATE_ARTICLE_TABLE = String.format(
             "CREATE TABLE %s ("
                     + "%s INTEGER PRIMARY KEY AUTOINCREMENT, "  // ID
+                    + "%s TEXT, " // form id
                     + "%s TEXT, " // form id
                     + "%s TEXT, " // form id
                     + "%s TEXT, " // form id
@@ -49,6 +52,7 @@ public class ArticleTable {
             Columns.TITLE,
             Columns.CATEGORY,
             Columns.API_URL,
+            Columns.BODY_TEXT,
             Columns.PINNED
     );
 
@@ -82,32 +86,70 @@ public class ArticleTable {
         return mOpenHelper.getWritableDatabase();
     }
 
-    private boolean exists(String articleId) {
-        Cursor cursor = query(articleId);
+    private boolean existsPinned(String articleId) {
+        Cursor cursor = queryPinned(articleId);
         boolean exists = cursor.getCount() > 0;
         IOUtil.closeQuietly(cursor);
         return exists;
     }
 
-    public Cursor query(String article_id) {
-        String selection = Columns.ARTICLE_ID + " = ?";
+    public Cursor queryPinned(String article_id) {
+        String selection = Columns.ARTICLE_ID + " = ? AND " + Columns.PINNED + " = ?";
+        return openReadable().query(TABLE_NAME,null, selection, new String[]{article_id, "1"}, null, null, null, null);
+    }
+
+    private boolean existsSaved(String articleId) {
+        Cursor cursor = querySaved(articleId);
+        boolean exists = cursor.getCount() > 0;
+        IOUtil.closeQuietly(cursor);
+        return exists;
+    }
+
+    public Cursor querySaved(String article_id) {
+        String selection = Columns.ARTICLE_ID + " = ? AND " + Columns.BODY_TEXT + " IS NOT NULL";
         return openReadable().query(TABLE_NAME,null, selection, new String[]{article_id}, null, null, null, null);
     }
 
     public void updatePinnedArticle(ArticleItem articleItem) {
         ContentValues contentValues = makeContentValues(articleItem);
+        String whereClause = Columns.ARTICLE_ID + " = ? AND " + Columns.PINNED + " != ?";
+        String[] whereArgs = {articleItem.getId(), String.valueOf(0)};
+
         if (articleItem.isPinned()) {
-            if (exists(articleItem.getId())) {
-                openWritable().update(TABLE_NAME,  contentValues,
-                        Columns.ARTICLE_ID + " = ? ", new String[]{articleItem.getId()});
+            if (existsPinned(articleItem.getId())) {
+                openWritable().update(TABLE_NAME,  contentValues, whereClause, whereArgs);
             } else {
                 openWritable().insert(TABLE_NAME, null, contentValues);
             }
         } else {
-            openWritable().delete(TABLE_NAME,Columns.ARTICLE_ID + " = ?", new String[]{articleItem.getId()});
+            openWritable().delete(TABLE_NAME, whereClause, whereArgs);
         }
 
         notifyChange();
+    }
+
+    public void updateArticle(Article article) {
+        ContentValues contentValues = makeContentValues(article);
+        String whereClause = Columns.ARTICLE_ID + " = ? AND " + Columns.BODY_TEXT + " IS NOT NULL";
+        if (article.isSaved()) {
+            if (existsSaved(article.getArticleItem().getId())) {
+                openWritable().update(TABLE_NAME,  contentValues,
+                        whereClause, new String[]{article.getArticleItem().getId()});
+            } else {
+                openWritable().insert(TABLE_NAME, null, contentValues);
+            }
+        } else {
+            openWritable().delete(TABLE_NAME,whereClause, new String[]{article.getArticleItem().getId()});
+        }
+
+        notifyChange();
+    }
+
+    private static ContentValues makeContentValues(Article article) {
+        ContentValues values = makeContentValues(article.getArticleItem());
+        values.put(Columns.BODY_TEXT, article.getArticleBodyText());
+
+        return values;
     }
 
     private static ContentValues makeContentValues(ArticleItem article) {
@@ -137,7 +179,15 @@ public class ArticleTable {
         Cursor cursor;
         switch (MATCHER.match(uri)) {
             case ARTICLE:
-                cursor = mOpenHelper.getReadableDatabase().query(TABLE_NAME, projection, selection, selectionArgs, null, null, sortOrder);
+                String withPinnedSelection = selection == null || selection.isEmpty()
+                        ? Columns.PINNED + " != ?" : selection + " AND " + Columns.PINNED + " != ?";
+                int length = selectionArgs == null || selectionArgs.length == 0
+                        ? 1 : selectionArgs.length + 1;
+                String[] withPinnedSelectionArgs = new String[length];
+                withPinnedSelectionArgs[length - 1] = String.valueOf(0);
+
+                cursor = mOpenHelper.getReadableDatabase().query(TABLE_NAME, projection, withPinnedSelection,
+                        withPinnedSelectionArgs, null, null, sortOrder);
                 break;
 
             default:
