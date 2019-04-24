@@ -168,7 +168,17 @@ public class ArticleTable {
         return values;
     }
 
-    public static ArticleItem parse(Cursor cursor) {
+    public static Article parseArticle(Cursor cursor) {
+        ArticleItem item = parseArticleItem(cursor);
+        Article article = new Article();
+        article.setArticleItem(item);
+        String bodyText = CursorUtil.getString(cursor, Columns.BODY_TEXT);
+        article.setArticleBodyText(bodyText);
+        article.setSaved(bodyText != null && !bodyText.isEmpty());
+        return article;
+    }
+
+    public static ArticleItem parseArticleItem(Cursor cursor) {
         ArticleItem article = new ArticleItem(CursorUtil.getString(cursor, Columns.ARTICLE_ID));
         article.setThumbnailUrl(CursorUtil.getString(cursor, Columns.THUMBNAIL_URL));
         article.setTitle(CursorUtil.getString(cursor, Columns.TITLE));

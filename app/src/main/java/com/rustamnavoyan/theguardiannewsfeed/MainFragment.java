@@ -185,7 +185,7 @@ public class MainFragment extends Fragment implements
         List<ArticleItem> articles = new ArrayList<>();
         cursor.moveToPosition(-1);
         while (cursor.moveToNext()) {
-            articles.add(ArticleTable.parse(cursor));
+            articles.add(ArticleTable.parseArticleItem(cursor));
         }
 
         return articles;
