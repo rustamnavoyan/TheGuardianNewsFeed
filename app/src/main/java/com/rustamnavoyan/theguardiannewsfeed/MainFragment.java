@@ -1,7 +1,11 @@
 package com.rustamnavoyan.theguardiannewsfeed;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
@@ -50,6 +54,14 @@ public class MainFragment extends Fragment implements
 
     private boolean mConnected;
 
+    private BroadcastReceiver mConnectivityReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            mArticleItems = null;
+            loadArticles();
+        }
+    };
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -62,12 +74,16 @@ public class MainFragment extends Fragment implements
     public void onResume() {
         super.onResume();
 
+        getContext().registerReceiver(mConnectivityReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+
         PeriodicDownloadManager.cancel(getContext());
     }
 
     @Override
     public void onPause() {
         super.onPause();
+
+        getContext().unregisterReceiver(mConnectivityReceiver);
 
         PeriodicDownloadManager.schedule(getContext());
     }
@@ -84,43 +100,48 @@ public class MainFragment extends Fragment implements
         mPinnedRecyclerView.setAdapter(mPinnedAdapter);
 
         mRecyclerView = view.findViewById(R.id.articles_recycler_view);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
-        mRecyclerView.setLayoutManager(layoutManager);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         mAdapter = new ArticleListAdapter(false, screenWidth, this);
         mRecyclerView.setAdapter(mAdapter);
         mConnected = ConnectionUtil.isConnected(getContext());
         if (mConnected) {
-            mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-                @Override
-                public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                    super.onScrollStateChanged(recyclerView, newState);
-                }
-
-                @Override
-                public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                    super.onScrolled(recyclerView, dx, dy);
-
-                    int totalItemCount = layoutManager.getItemCount();
-                    int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
-
-                    // start loading articles if there are 2 items to reach the last loaded item
-                    if (totalItemCount <= (lastVisibleItem + 2)) {
-                        mAdapter.setLoading();
-                        loadArticles();
-                    }
-                }
-            });
-            if (mArticleItems == null) {
-                loadArticles();
-            } else {
-                mAdapter.addArticleList(mArticleItems);
-            }
+            loadArticles();
         }
 
         return view;
     }
 
     private void loadArticles() {
+        mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+            }
+
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+
+                LinearLayoutManager layoutManager = ((LinearLayoutManager) mRecyclerView.getLayoutManager());
+                int totalItemCount = layoutManager.getItemCount();
+                int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
+
+                // start loading articles if there are 2 items to reach the last loaded item
+                if (totalItemCount <= (lastVisibleItem + 2)) {
+                    mAdapter.setLoading();
+                    loadNextArticles();
+                }
+            }
+        });
+        if (mArticleItems == null) {
+            loadNextArticles();
+        } else {
+            mAdapter.addArticleList(mArticleItems);
+        }
+
+    }
+
+    private void loadNextArticles() {
         mArticleDownloader.downloadArticleList(mPage, articles -> {
             if (getActivity() != null) {
                 getActivity().runOnUiThread(() -> {
